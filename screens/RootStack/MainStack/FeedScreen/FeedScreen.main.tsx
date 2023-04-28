@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, FlatList } from "react-native";
-import { Appbar, Card } from "react-native-paper";
-import { getFirestore, collection, query, onSnapshot, orderBy } from "firebase/firestore";
+import { Appbar, Button, Card, Headline } from "react-native-paper";
+import { getFirestore, collection, query, onSnapshot, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { SocialModel } from "../../../../models/social.js";
 import { styles } from "./FeedScreen.styles";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -14,7 +14,6 @@ import { getAuth, signOut } from "firebase/auth";
   passed to screens through `route.params` , and navigated to screens using `navigation.navigate(...)` and 
   `navigation.goBack()`. In this project, we explicitly define the types of these props at the top of 
   each screen component.
-
   Now, whenever we type `navigation.`, our code editor will know exactly what we can do with that object, 
   and it'll suggest `.goBack()` as an option. It'll also tell us when we're trying to do something 
   that isn't supported by React Navigation!
@@ -26,11 +25,19 @@ interface Props {
 export default function FeedScreen({ navigation }: Props) {
   // List of social objects
   const [socials, setSocials] = useState<SocialModel[]>([]);
+  const [liked, setLiked] = useState("Like");
+  
+
 
   const auth = getAuth();
   const currentUserId = auth.currentUser!.uid;
   const db = getFirestore();
   const socialsCollection = collection(db, "socials");
+  const [heart , setHeart] = useState('heart-outline');
+
+
+
+
 
   useEffect(() => {
     const unsubscribe = onSnapshot(query(socialsCollection, orderBy("eventDate", "asc")), (querySnapshot) => {
@@ -49,12 +56,37 @@ export default function FeedScreen({ navigation }: Props) {
     // TODO: Put your logic for flipping the user's "interested"
     // status here, and call this method from your "like"
     // button on each Social card.
+
+    if(!social.interested){
+      setHeart('heart');
+      setLiked("Liked");
+    }
+    else{
+      setHeart('heart-outline');
+      setLiked("Like");
+    }
+
+    const db = getFirestore();
+    const socialsRef = collection(db, "socials");
+    const socialRef = doc(socialsRef, social.id);
+
+    updateDoc(socialRef, { interested: social.interested });
+
+
+
   };
 
   const deleteSocial = (social: SocialModel) => {
     // TODO: Put your logic for deleting a social here,
     // and call this method from your "delete" button
     // on each Social card that was created by this user.
+
+    const db = getFirestore();
+    const socialsRef = collection(db, "socials");
+    const socialRef = doc(socialsRef, social.id);
+
+    deleteDoc(socialRef);
+
   };
 
   const renderSocial = ({ item }: { item: SocialModel }) => {
@@ -77,8 +109,37 @@ export default function FeedScreen({ navigation }: Props) {
         />
         {/* TODO: Add a like/interested button & delete soccial button. See Card.Actions
               in React Native Paper for UI/UX inspiration.
-              https://callstack.github.io/react-native-paper/card-actions.html */}
+              https://callstack.github.io/react-native-paper/card-actions.html */
+
+              
+
+              
+              
+              
+              }
+
+        <Card.Actions>
+          <Button icon={heart} onPress={() => toggleInterested(item)}> {liked} </Button>
+          {/* <Button color = "red" onPress={() => deleteSocial(item)}> Delete </Button> */}
+          
+
+
+          
+        </Card.Actions>
+
+          
+             
       </Card>
+    );
+  };
+
+  const ListEmptyComponent = () => {
+    return (
+      <View>
+        <Headline>
+          Welcome to SpaceJam!
+        </Headline>
+       </View>
     );
   };
 
@@ -89,7 +150,8 @@ export default function FeedScreen({ navigation }: Props) {
           icon="exit-to-app"
           onPress={() => signOut(auth)}
         />
-        <Appbar.Content title="Socials" />
+        <Appbar.Content title="SpaceJam" 
+        />
         <Appbar.Action
           icon="plus"
           onPress={() => {
@@ -99,6 +161,8 @@ export default function FeedScreen({ navigation }: Props) {
       </Appbar.Header>
     );
   };
+
+  
 
   return (
     <>
@@ -111,8 +175,8 @@ export default function FeedScreen({ navigation }: Props) {
           // TODO: Uncomment the following line, and figure out how it works
           // by reading the documentation :)
           // https://reactnative.dev/docs/flatlist#listemptycomponent
-
-          // ListEmptyComponent={ListEmptyComponent}
+             
+          ListEmptyComponent={ListEmptyComponent}
         />
       </View>
     </>

@@ -18,6 +18,7 @@ import { getApp } from "firebase/app";
 import { SocialModel } from "../../../models/social";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList } from "../RootStackScreen";
+import {getAuth} from "firebase/auth";
 
 interface Props {
   navigation: StackNavigationProp<RootStackParamList, "NewSocialScreen">;
@@ -37,6 +38,9 @@ export default function NewSocialScreen({ navigation }: Props) {
   const [message, setMessage] = useState("");
   // Loading state for submit button
   const [loading, setLoading] = useState(false);
+
+  const auth = getAuth();
+  const currentUserId = auth.currentUser!.uid;
 
   // Code for ImagePicker (from docs)
   useEffect(() => {
@@ -62,7 +66,7 @@ export default function NewSocialScreen({ navigation }: Props) {
       quality: 1,
     });
     console.log("done");
-    if (!result.cancelled) {
+    if (!result.canceled) {
       setEventImage(result.uri);
     }
   };
@@ -128,11 +132,13 @@ export default function NewSocialScreen({ navigation }: Props) {
       console.log("getting download url");
       const downloadURL = await getDownloadURL(result.ref);
       const socialDoc: SocialModel = {
+        userCreated: currentUserId,
         eventName: eventName,
         eventDate: eventDate.getTime(),
         eventLocation: eventLocation,
         eventDescription: eventDescription,
         eventImage: downloadURL,
+        interested: false
       };
       console.log("setting download url");
       await setDoc(socialRef, socialDoc);
