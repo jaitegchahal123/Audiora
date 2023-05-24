@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, FlatList } from "react-native";
-import { Appbar, Button, Card, Headline } from "react-native-paper";
+import { Appbar, Button, Card, Headline, Searchbar } from "react-native-paper";
 import { getFirestore, collection, query, onSnapshot, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { SocialModel } from "../../../../models/social.js";
 import { styles } from "./FeedScreen.styles";
@@ -22,12 +22,15 @@ interface Props {
   navigation: StackNavigationProp<MainStackParamList, "FeedScreen">;
 }
 
+
+
 export default function FeedScreen({ navigation }: Props) {
   // List of social objects
   const [socials, setSocials] = useState<SocialModel[]>([]);
   const [liked, setLiked] = useState("Like");
   
-
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filteredSocials, setFilteredSocials] = useState<SocialModel[]>([]);
 
   const auth = getAuth();
   const currentUserId = auth.currentUser!.uid;
@@ -36,6 +39,14 @@ export default function FeedScreen({ navigation }: Props) {
   const [heart , setHeart] = useState('heart-outline');
 
 
+  const onChangeSearch = (query: string) => {
+    setSearchQuery(query);
+    const filteredSocials = socials.filter(
+      (social) =>
+        social.eventName.toLowerCase().indexOf(query.toLowerCase()) !== -1
+    );
+    setFilteredSocials(filteredSocials);
+  };
 
 
 
@@ -51,6 +62,7 @@ export default function FeedScreen({ navigation }: Props) {
       });
     return unsubscribe;
   }, []);
+  
 
   const toggleInterested = (social: SocialModel) => {
     // TODO: Put your logic for flipping the user's "interested"
@@ -76,18 +88,39 @@ export default function FeedScreen({ navigation }: Props) {
 
   };
 
-  const deleteSocial = (social: SocialModel) => {
-    // TODO: Put your logic for deleting a social here,
-    // and call this method from your "delete" button
-    // on each Social card that was created by this user.
+  useEffect(() => {
+  const db = getFirestore();
+  const socialsCollection = collection(db, "socials");
 
-    const db = getFirestore();
-    const socialsRef = collection(db, "socials");
-    const socialRef = doc(socialsRef, social.id);
+  const unsubscribe = onSnapshot(
+    query(socialsCollection, orderBy("eventDate", "asc")),
+    (querySnapshot) => {
+      const socials: SocialModel[] = [];
 
-    deleteDoc(socialRef);
+      querySnapshot.forEach((doc) => {
+        const social = doc.data() as SocialModel;
+        social.id = doc.id;
+        socials.push(social);
+      });
 
-  };
+      setSocials(socials);
+    }
+  );
+
+  return unsubscribe;
+}, []);
+
+const renderSearch = () => {
+  return (
+    <View style={{marginHorizontal: 16, marginVertical: 8}}>
+      <Searchbar
+        placeholder="Search events..."
+        onChangeText={onChangeSearch}
+        value={searchQuery}
+      />
+    </View>
+  );
+};
 
   const renderSocial = ({ item }: { item: SocialModel }) => {
     const onPress = () => {
@@ -110,47 +143,26 @@ export default function FeedScreen({ navigation }: Props) {
         {/* TODO: Add a like/interested button & delete soccial button. See Card.Actions
               in React Native Paper for UI/UX inspiration.
               https://callstack.github.io/react-native-paper/card-actions.html */
-
-              
-
-              
-              
-              
               }
-
         <Card.Actions>
           <Button icon={heart} onPress={() => toggleInterested(item)}> {liked} </Button>
-          {/* <Button color = "red" onPress={() => deleteSocial(item)}> Delete </Button> */}
-          
-
-
-          
+          {/* <Button color = "red" onPress={() => deleteSocial(item)}> Delete from Feed</Button> */}
+          <Button color = "black" > Description</Button>
         </Card.Actions>
-
-          
-             
       </Card>
-    );
-  };
-
-  const ListEmptyComponent = () => {
-    return (
-      <View>
-        <Headline>
-          Welcome to SpaceJam!
-        </Headline>
-       </View>
     );
   };
 
   const Bar = () => {
     return (
-      <Appbar.Header>
+      <Appbar.Header style={{ backgroundColor: "white" }}>
         <Appbar.Action
           icon="exit-to-app"
           onPress={() => signOut(auth)}
         />
-        <Appbar.Content title="SpaceJam" 
+        <Appbar.Content
+          title="Audiora"
+          titleStyle={{ fontSize: 24, fontFamily: "Avenir-Book", color: "black" }}
         />
         <Appbar.Action
           icon="plus"
@@ -162,23 +174,17 @@ export default function FeedScreen({ navigation }: Props) {
     );
   };
 
-  
-
   return (
     <>
       <Bar />
-      <View style={styles.container}>
-        <FlatList
-          data={socials}
-          renderItem={renderSocial}
-          keyExtractor={(_: any, index: number) => "key-" + index}
-          // TODO: Uncomment the following line, and figure out how it works
-          // by reading the documentation :)
-          // https://reactnative.dev/docs/flatlist#listemptycomponent
-             
-          ListEmptyComponent={ListEmptyComponent}
-        />
-      </View>
+      <View style={{ flex: 1, marginTop: 8 }}>
+      <FlatList
+      data={filteredSocials.length > 0 ? filteredSocials : socials} 
+      renderItem={renderSocial}
+      keyExtractor={(social) => social.id}
+      ListHeaderComponent = {renderSearch()}
+    />
+</View>
     </>
   );
 }
